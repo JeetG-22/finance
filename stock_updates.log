@@ -1,0 +1,5 @@
+2025-10-12 22:16:00,754 - Error updating stocks: 'dict' object has no attribute 'append'
+2025-10-12 22:16:27,728 - Error updating stocks: No module named 'openpyxl'
+2025-10-12 22:17:05,838 - Error updating stocks: [Errno 2] No such file or directory: '/Users/jgupta/Documents/Personal Portfolio'
+2025-10-12 22:17:29,785 - Successfully updated 6 stocks
+2025-10-12 22:36:49,897 - Successfully updated 6 stocks

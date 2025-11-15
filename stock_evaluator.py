@@ -13,20 +13,31 @@ logging.basicConfig(
 
 def update_stock_metrics():
     try:
-        tickers = ["FXAIX", "QQQ", "VZ", "T", "UNH", "DKNG"]
+        tickers = ["FXAIX", "QQQ", "VZ", "T", "UNH", "DKNG", "LULU"]
         data = []
         
         for ticker in tickers:
             stock = yf.Ticker(ticker)
             info = stock.info
             data.append({
-                # Basic Info
+                
+                # Basic Info From Summary Page
                 'Ticker': ticker,
                 'Price': info.get('currentPrice'),
                 'Market Cap': info.get('marketCap'),
+                'P/E Ratio': info.get('trailingPE'),
+                # Risk
+                'Beta': info.get('beta'),
+                # Earnings
+                'EPS': info.get('trailingEps'),
+                # Dividend
+                'Dividend Yield': info.get('dividendYield'),
+                'Payout Ratio': info.get('payoutRatio'),
+                # 52-Week Range
+                '52W Low': info.get('fiftyTwoWeekLow'),
+                '52W High': info.get('fiftyTwoWeekHigh'),
                 
                 # Valuation Ratios
-                'P/E Ratio': info.get('trailingPE'),
                 'Forward P/E': info.get('forwardPE'),
                 'PEG Ratio': info.get('pegRatio'),
                 'Price/Book': info.get('priceToBook'),
@@ -43,20 +54,6 @@ def update_stock_metrics():
                 # Growth
                 'Revenue Growth': info.get('revenueGrowth'),
                 'Earnings Growth': info.get('earningsGrowth'),
-                
-                # Risk
-                'Beta': info.get('beta'),
-                
-                # Earnings
-                'EPS': info.get('trailingEps'),
-                
-                # Dividend
-                'Dividend Yield': info.get('dividendYield'),
-                'Payout Ratio': info.get('payoutRatio'),
-                
-                # 52-Week Range
-                '52W Low': info.get('fiftyTwoWeekLow'),
-                '52W High': info.get('fiftyTwoWeekHigh'),
                 
                 # Timestamp
                 'Last Updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S')

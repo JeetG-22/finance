@@ -15,18 +15,26 @@ def fetch_data():
     """
     tickers = {
         # Equities
-        '^GSPC': 'SP500',
         '^IXIC': 'NASDAQ',
+        '^GSPC': 'SP500',
+        '^SPX': 'SP500_V2',
         
         # Fixed Income
-        '^TNX': 'TREASURY_YIELD',  # 10-Year yield
         'TLT': 'BOND_ETF',          # Long-term treasury ETF
+        'IEF': 'BOND_ETF_7-10',
+        'SHY': "BOND_ETF_1-3",
+
+
         
         # Gold (changed from futures to ETF for consistency)
         'GLD': 'GOLD',              # Physical gold ETF
         
-        # Commodities (NEW - proper commodity exposure)
+        # Commodities 
         'DBC': 'COMMODITIES',       # Invesco DB Commodity Index
+        'DBE': 'COMMODITIES_ENERGY',
+        'DBA': 'COMMODITIES_AGRIC',
+        'DBB': 'COMMODITIES_BASE_METALS',
+
         
         # Risk indicators
         '^VIX': 'VIX',
@@ -36,32 +44,22 @@ def fetch_data():
     for ticker, name in tickers.items():
         try:
             df = yf.download(ticker, period='max', progress=False)
+            print(df)
             if df is None or df.empty:
-                print(f"⚠ Skipping {ticker}: No data returned")
+                print(f"Skipping {ticker}: No data returned")
                 continue
             
             if 'Close' in df.columns:
                 data[name] = df['Close'].squeeze()
-            elif 'close' in df.columns:
-                data[name] = df['close'].squeeze()
             else:
-                print(f"⚠ Skipping {ticker}: No Close column found")
+                print(f"Skipping {ticker}: No Close column found")
         except Exception as e:
-            print(f"⚠ Skipping {ticker}: {str(e)}")
+            print(f"Skipping {ticker}: {str(e)}")
     
     if not data:
         raise ValueError("No data downloaded. Check internet connection.")
     
     df = pd.DataFrame(data).dropna()
-    
-    # Convert treasury yield to bond price (inverse relationship)
-    # Bond price ≈ 100 / (1 + yield/100)
-    if 'TREASURY_YIELD' in df.columns:
-        df['BOND_PRICE'] = 100 / (1 + df['TREASURY_YIELD']/100)
-    
-    # If we don't have TLT, use synthetic bond price
-    if 'BOND_ETF' not in df.columns and 'BOND_PRICE' in df.columns:
-        df['BOND_ETF'] = df['BOND_PRICE']
     
     return df
 
@@ -82,7 +80,7 @@ def equity_strategy(data, weight=0.24):
     - Long S&P 500 (70%) + NASDAQ (30%)
     - Hedge 50% when SPX < 200-day MA
     """
-    sp500 = data['SP500']
+    sp500 = data['SP500_V2']
     nasdaq = data['NASDAQ']
     
     # Trend filter: reduce exposure when below 200-day MA
@@ -114,12 +112,9 @@ def gold_strategy(data, weight=0.19):
 def fixed_income_strategy(data, weight=0.18):
     """
     Long-term Treasury bonds
-    Uses TLT or synthetic bond price from yields
+    Uses TLT 
     """
-    if 'BOND_ETF' in data.columns:
-        bond_ret = data['BOND_ETF'].pct_change()
-    else:
-        bond_ret = data['BOND_PRICE'].pct_change()
+    bond_ret = data['BOND_ETF'].pct_change()
     
     return bond_ret * weight
 
@@ -180,7 +175,7 @@ def long_vol_strategy(data, weight=0.17):
     - Hold for 30 days, then 5-day cooldown
     """
     sp500 = data['SP500']
-    bond = data['BOND_ETF'] if 'BOND_ETF' in data.columns else data['BOND_PRICE']
+    bond = data['BOND_ETF'] 
     
     # 63-day return
     r_63 = sp500 / sp500.shift(63) - 1
@@ -235,7 +230,7 @@ def qis_strategy(data, weight=0.07):
     - Market-neutral approach
     """
     sp500 = data['SP500']
-    bond = data['BOND_ETF'] if 'BOND_ETF' in data.columns else data['BOND_PRICE']
+    bond = data['BOND_ETF'] 
     
     # 12-month momentum signals
     mom_eq = (sp500 / sp500.shift(252) - 1) > 0
@@ -252,7 +247,7 @@ def qis_strategy(data, weight=0.07):
 # ============================================================================
 def benchmark_60_40(data):
     """Traditional 60/40 portfolio"""
-    bond = data['BOND_ETF'] if 'BOND_ETF' in data.columns else data['BOND_PRICE']
+    bond = data['BOND_ETF'] 
     return 0.6 * data['SP500'].pct_change() + 0.4 * bond.pct_change()
 
 def benchmark_spy(data):
@@ -267,16 +262,13 @@ def passive_portfolio(data):
     eq_ret = 0.24 * data['SP500'].pct_change()
     gold_ret = 0.19 * data['GOLD'].pct_change()
     
-    bond = data['BOND_ETF'] if 'BOND_ETF' in data.columns else data['BOND_PRICE']
+    bond = data['BOND_ETF'] 
     bond_ret = 0.18 * bond.pct_change()
     
     comm_ret = 0.15 * data['COMMODITIES'].pct_change()
     
-    # Passive long vol = just hold VIX (terrible, but that's the point)
-    if 'VIX' in data.columns:
-        vix_ret = 0.17 * data['VIX'].pct_change()
-    else:
-        vix_ret = pd.Series(0.0, index=data.index)
+    # leave at 83% invested, 17% cash with annual 2% returns
+    vix_ret = 0.17 * .02/252  # Can't hold VIX so converted into cash
     
     qis_ret = 0.07 * (data['SP500'].pct_change() + bond.pct_change()) / 2
     
@@ -404,7 +396,7 @@ def run_backtest():
     axes[2].axhline(y=0, color='black', linestyle='-', linewidth=0.5)
     
     plt.tight_layout()
-    plt.savefig('/mnt/user-data/outputs/backtest_results.png', dpi=300, bbox_inches='tight')
+    plt.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
     print("✓ Charts saved: backtest_results.png\n")
     
     # Crisis performance
